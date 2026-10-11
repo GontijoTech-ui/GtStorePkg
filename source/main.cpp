@@ -62,18 +62,18 @@ void* start_background_proxy(void* arg) {
 }
 
 int main() {
-    // 1. Carregar o módulo de sistema de rede da PS4
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
+    // 1. Carregar o módulo de sistema de rede da PS4 (Usando a nomenclatura OpenOrbis)
+    sceSysmoduleLoadModule(ORBIS_SYSMODULE_NET);
 
-    // 2. Alocar memória e inicializar a placa de rede
-    SceNetInitParam netParam;
+    // 2. Alocar memória e inicializar a placa de rede (Usando a estrutura OpenOrbis)
+    OrbisNetInitParam netParam;
     memset(&netParam, 0, sizeof(netParam));
     netParam.memory = malloc(1 * 1024 * 1024); // Aloca 1MB de RAM para o buffer de rede
     netParam.size = 1 * 1024 * 1024;
     netParam.flags = 0;
     sceNetInit(&netParam);
 
-    // 3. Agora sim, podemos arrancar a thread do proxy com segurança
+    // 3. Arrancar a thread do proxy com segurança
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, start_background_proxy, NULL);
     pthread_detach(thread_id);
