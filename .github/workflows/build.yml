@@ -6,33 +6,53 @@ on:
   workflow_dispatch:
 
 jobs:
-    build:
-      runs-on: ubuntu-22.04
-      
-      steps:
-      - name: Checkout do Código
-        uses: actions/checkout@v4
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout do Código
+      uses: actions/checkout@v4
 
-      - name: Instalar Compiladores
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang lld make
+    - name: Instalar Compiladores
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang lld make python3
 
-      - name: Baixar OOSDK (OpenOrbis Toolchain)
-        run: |
-          echo "A descarregar o OOSDK..."
-          curl -sL https://github.com/LightningMods/OpenOrbis-PS4-Toolchain/releases/download/v0.50001/OOSDK.tar.gz | tar -xz -C "$GITHUB_WORKSPACE"
-          chmod +x "$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain/bin/linux/"*
-          echo "OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain" >> "$GITHUB_ENV"
+    - name: Baixar OOSDK (OpenOrbis Toolchain)
+      run: |
+        echo "A descarregar o OOSDK..."
+        curl -sL https://github.com/LightningMods/OpenOrbis-PS4-Toolchain/releases/download/v0.50001/OOSDK.tar.gz | tar -xz -C "$GITHUB_WORKSPACE"
+        chmod +x "$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain/bin/linux/"*
+        echo "OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain" >> "$GITHUB_ENV"
 
-      - name: Compilar Código e Gerar PKG
-        run: |
-          make
+    - name: Gerar param.sfo Automático
+      run: |
+        mkdir -p sce_sys
+        python3 - << 'EOF'
+        import struct
+        
+        # Cria um cabeçalho e estrutura SFO básica exigida pela PS4
+        sfo = bytearray(b'\x00PSF\x01\x01\x00\x00')
+        # Tabela de chaves e dados mínimos para o título GTSTORE e ID NPXS39041
+        # Gravando diretamente um binário SFO compatível
+        sfo_content = b'\x00PSF\x01\x01\x00\x00\x1c\x00\x00\x00\x5c\x00\x00\x00\x03\x00\x00\x00' \
+                      b'APP_TYPE\x00\x00\x02\x04\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00' \
+                      b'TITLE\x00\x00\x00\x02\x02\x00\x00\x80\x00\x00\x00\x08\x00\x00\x00' \
+                      b'TITLE_ID\x00\x00\x02\x02\x00\x00\x10\x00\x00\x00\x88\x00\x00\x00' \
+                      b'\x01\x00\x00\x00GTSTORE\x00' + b'\x00' * 121 + b'NPXS39041\x00' + b'\x00' * 7
+        
+        with open('sce_sys/param.sfo', 'wb') as f:
+            f.write(sfo_content)
+        EOF
 
-      - name: Guardar o Artefacto PKG
-        uses: actions/upload-artifact@v4
-        with:
-          name: GTSTORE-Client-Pkg
-          path: |
-            *.pkg
-            homebrew.elf
+    - name: Compilar Código e Gerar PKG
+      run: |
+        make
+
+    - name: Guardar o Artefacto PKG
+      uses: actions/upload-artifact@v4
+      with:
+        name: GTSTORE-Client-Pkg
+        path: |
+          *.pkg
+          homebrew.elf
