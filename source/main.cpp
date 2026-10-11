@@ -7,7 +7,6 @@
 
 #define LOCAL_PORT 8080
 
-// Função que roda em background gerindo a porta 8080 via POSIX thread
 void* start_background_proxy(void* arg) {
     int server_fd, client_socket;
     struct sockaddr_in address;
@@ -41,7 +40,6 @@ void* start_background_proxy(void* arg) {
         ssize_t bytesRead = read(client_socket, buffer, sizeof(buffer) - 1);
         
         if (bytesRead > 0) {
-            // Resposta JSON padrão encaminhando para o seu ecossistema remoto/túnel
             const char* http_response = 
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: application/json; charset=utf-8\r\n"
@@ -60,12 +58,9 @@ void* start_background_proxy(void* arg) {
 
 int main() {
     pthread_t thread_id;
-    
-    // Dispara a thread em background usando o subsistema nativo do FreeBSD/Orbis OS
     pthread_create(&thread_id, NULL, start_background_proxy, NULL);
     pthread_detach(thread_id);
 
-    // Mantém a aplicação rodando em segundo plano sem consumir recursos excessivos
     while (true) {
         sleep(10);
     }
