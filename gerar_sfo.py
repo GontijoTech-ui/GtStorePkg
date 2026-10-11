@@ -10,12 +10,14 @@ def write_sfo():
     magic = b'\x00PSF'
     version = b'\x01\x01\x00\x00'
 
+    # A lista final com todas as chaves obrigatórias e o FORMAT de volta
     entries = [
         (b"APP_TYPE\x00", 0x0404, 4, to_u32(1)),
         (b"APP_VER\x00",  0x0204, 8, b'01.00\x00'),
         (b"CATEGORY\x00", 0x0204, 4, b'gd\x00'),
         (b"CONTENT_ID\x00", 0x0204, 48, b'UP0000-GTST00001_00-GTSTOREAPP000000\x00'),
         (b"DOWNLOAD_DATA_SIZE\x00", 0x0404, 4, to_u32(0)),
+        (b"FORMAT\x00",   0x0204, 4, b'obs\x00'),
         (b"NP_TITLE_ID\x00", 0x0204, 16, b'GTST00001\x00'),
         (b"SYSTEM_VER\x00", 0x0404, 4, to_u32(0)),
         (b"TITLE\x00",    0x0204, 64, b'GTSTORE\x00'),
