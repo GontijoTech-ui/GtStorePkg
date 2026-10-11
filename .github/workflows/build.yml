@@ -35,9 +35,9 @@ jobs:
             magic = b'\x00PSF'
             version = b'\x01\x01\x00\x00'
             
-            # Entradas obrigatórias exigidas pela PS4
+            # 0x0404 é o tipo correto para inteiros de 32-bit no SFO da PS4
             entries = [
-                ("APP_TYPE", 0x0402, 4, struct.pack("<I", 0)),
+                ("APP_TYPE", 0x0404, 4, struct.pack("<I", 0)),
                 ("TITLE", 0x0202, 64, "GTSTORE".encode('utf-8') + b'\x00'),
                 ("TITLE_ID", 0x0202, 16, "NPXS39041".encode('utf-8') + b'\x00'),
             ]
