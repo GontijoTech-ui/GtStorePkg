@@ -18,8 +18,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y clang lld make python3
 
-    - name: Baixar OOSDK
+    - name: Baixar OOSDK (OpenOrbis Toolchain)
       run: |
+        echo "A descarregar o OOSDK..."
         curl -sL https://github.com/LightningMods/OpenOrbis-PS4-Toolchain/releases/download/v0.50001/OOSDK.tar.gz | tar -xz -C "$GITHUB_WORKSPACE"
         chmod +x "$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain/bin/linux/"*
         echo "OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain" >> "$GITHUB_ENV"
@@ -27,10 +28,10 @@ jobs:
     - name: Gerar param.sfo
       run: python3 gerar_sfo.py
 
-    - name: Compilar e Gerar PKG
+    - name: Compilar Codigo e Gerar PKG
       run: make
 
-    - name: Guardar Artefacto PKG
+    - name: Guardar o Artefacto PKG
       uses: actions/upload-artifact@v4
       with:
         name: GTSTORE-Client-Pkg
