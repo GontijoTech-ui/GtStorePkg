@@ -1,6 +1,6 @@
 TARGET = homebrew.elf
 OBJS = build/main.o
-CONTENT_ID = IV0002-NPXS39041_00-STOREUPD00000000
+CONTENT_ID = UP0000-CUSA99999_00-GTSTOREAPP00000
 
 # Bibliotecas essenciais do sistema da PS4 e rede
 LIBS = -luser_mem_sys -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceCommonDialog
@@ -19,8 +19,8 @@ $(TARGET): $(OBJS)
 		-L$(OO_PS4_TOOLCHAIN)/lib $(LIBS) $(OO_PS4_TOOLCHAIN)/lib/crt1.o
 	$(OO_PS4_TOOLCHAIN)/bin/linux/create-fself -in=build/source.elf -out=build/source.oelf --eboot "$(TARGET)" --paid 0x3800000000000011 --authinfo 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 	
-	# Gera o .gp4 incluindo o binário e o param.sfo gerado pelo workflow
-	$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --files "$(TARGET) sce_sys/param.sfo"
+	# Gera o .gp4 incluindo o binário, param.sfo e icon0.png
+	$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --files "$(TARGET) sce_sys/param.sfo sce_sys/icon0.png"
 	
 	# Empacota o projeto gerando o .pkg final
 	$(OO_PS4_TOOLCHAIN)/bin/linux/PkgTool.Core pkg_build pkg.gp4 .
