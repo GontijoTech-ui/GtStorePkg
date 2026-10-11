@@ -1,7 +1,7 @@
 .RECIPEPREFIX = >
 TARGET = eboot.bin
 OBJS = build/main.o
-CONTENT_ID = UP0000-CUSA99999_00-GTSTOREAPP000000
+CONTENT_ID = UP0000-GTST00001_00-GTSTOREAPP000000
 
 LIBS = -luser_mem_sys -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceCommonDialog
 OO_PS4_TOOLCHAIN ?= OpenOrbis/PS4Toolchain
