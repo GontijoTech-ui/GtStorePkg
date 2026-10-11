@@ -4,6 +4,11 @@
 #include <string.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+// Cabeçalhos específicos da PS4 (OpenOrbis)
+#include <orbis/Sysmodule.h>
+#include <orbis/Net.h>
 
 #define LOCAL_PORT 8080
 
@@ -57,10 +62,23 @@ void* start_background_proxy(void* arg) {
 }
 
 int main() {
+    // 1. Carregar o módulo de sistema de rede da PS4
+    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
+
+    // 2. Alocar memória e inicializar a placa de rede
+    SceNetInitParam netParam;
+    memset(&netParam, 0, sizeof(netParam));
+    netParam.memory = malloc(1 * 1024 * 1024); // Aloca 1MB de RAM para o buffer de rede
+    netParam.size = 1 * 1024 * 1024;
+    netParam.flags = 0;
+    sceNetInit(&netParam);
+
+    // 3. Agora sim, podemos arrancar a thread do proxy com segurança
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, start_background_proxy, NULL);
     pthread_detach(thread_id);
 
+    // Mantém a aplicação viva infinitamente
     while (true) {
         sleep(10);
     }
