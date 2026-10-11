@@ -10,18 +10,18 @@ def write_sfo():
     magic = b'\x00PSF'
     version = b'\x01\x01\x00\x00'
 
-    # Tipos Oficiais PS4: 0x0404 (Inteiro) | 0x0204 (String UTF-8)
+    # Adicionado CONTENT_ID (obrigatório bater certo com o Makefile) e FORMAT (obs)
     entries = [
         (b"APP_TYPE\x00", 0x0404, 4, to_u32(0)),
         (b"APP_VER\x00",  0x0204, 8, b'01.00\x00'),
         (b"CATEGORY\x00", 0x0204, 4, b'gd\x00'),
+        (b"CONTENT_ID\x00", 0x0204, 48, b'UP0000-CUSA99999_00-GTSTOREAPP000000\x00'),
+        (b"FORMAT\x00",   0x0204, 4, b'obs\x00'),
         (b"TITLE\x00",    0x0204, 64, b'GTSTORE\x00'),
-        # ID corrigido para Homebrew (evita o erro CE-34629-4):
         (b"TITLE_ID\x00", 0x0204, 16, b'CUSA99999\x00'),
         (b"VERSION\x00",  0x0204, 8, b'01.00\x00')
     ]
 
-    # A PS4 exige ordem alfabética estrita nas chaves
     entries.sort(key=lambda x: x[0])
 
     count = len(entries)
@@ -49,16 +49,13 @@ def write_sfo():
         data_len = len(val_bytes)
         index_entries.append((key_off, fmt, data_len, max_len, val_off))
 
-    # Alinhamento de memória exigido pela PS4 (blocos de 4 bytes)
     while len(keys_data) % 4 != 0:
         keys_data.append(0)
 
     data_table_offset = key_table_offset + len(keys_data)
 
-    # Cria a pasta sce_sys automaticamente se não existir
     os.makedirs('sce_sys', exist_ok=True)
     
-    # Escreve o ficheiro final na pasta sce_sys
     with open('sce_sys/param.sfo', 'wb') as f:
         f.write(magic)
         f.write(version)
@@ -78,4 +75,3 @@ def write_sfo():
 
 if __name__ == '__main__':
     write_sfo()
-    print("param.sfo gerado com sucesso e pronto para a PS4!")
