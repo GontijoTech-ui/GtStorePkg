@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <psproject fmt="gp4" version="1000">
   <volume volume_type="pkg_hd_game">
+    <package content_id="IV0002-NPXS39041_00-STOREUPD00000000" passcode="00000000000000000000000000000000" />
     <files>
       <file targpath="eboot.bin" source="homebrew.elf" />
       <file targpath="sce_sys/icon0.png" source="App Media-Assets/assets/icon0.png" />
       <file targpath="sce_sys/pic0.png" source="App Media-Assets/assets/pic0.png" />
     </files>
-    <types>
-    </types>
   </volume>
+  <root dir_id="0">
+  </root>
 </psproject>
