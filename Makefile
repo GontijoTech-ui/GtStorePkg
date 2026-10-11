@@ -1,5 +1,5 @@
 .RECIPEPREFIX = >
-TARGET = homebrew.elf
+TARGET = eboot.bin
 OBJS = build/main.o
 CONTENT_ID = UP0000-CUSA99999_00-GTSTOREAPP000000
 
@@ -24,4 +24,4 @@ build/main.o: source/main.cpp
 >$(CXX) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c -Wall -std=c++11 -isysroot $(OO_PS4_TOOLCHAIN) -isystem $(OO_PS4_TOOLCHAIN)/include -isystem $(OO_PS4_TOOLCHAIN)/include/c++/v1 -Iinclude -o $@ $<
 
 clean:
->rm -rf build $(TARGET) *.pkg pkg.gp4 sce_sys
+>rm -rf build $(TARGET) *.pkg pkg.gp4 sce_sys/param.sfo
