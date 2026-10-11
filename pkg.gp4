@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<psproject>
+<psproject fmt="gp4" version="1000">
   <volume volume_type="pkg_hd_game">
     <files>
       <file targpath="eboot.bin" source="homebrew.elf" />
       <file targpath="sce_sys/icon0.png" source="App Media-Assets/assets/icon0.png" />
       <file targpath="sce_sys/pic0.png" source="App Media-Assets/assets/pic0.png" />
     </files>
+    <types>
+    </types>
   </volume>
 </psproject>
