@@ -25,11 +25,11 @@ jobs:
         chmod +x "$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain/bin/linux/"*
         echo "OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain" >> "$GITHUB_ENV"
 
-    - name: Forcar conversao real do Icone
+    - name: Forcar conversao real do Icone para 24-bit sem alpha
       run: |
         mkdir -p sce_sys
         if [ -f "sce_sys/icon0.png" ]; then
-          convert sce_sys/icon0.png -resize 512x512! PNG32:sce_sys/icon0.png
+          convert sce_sys/icon0.png -resize 512x512! -alpha off -type TrueColor PNG24:sce_sys/icon0.png
         fi
 
     - name: Gerar param.sfo
@@ -42,6 +42,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: GTSTORE-Client-Pkg
-        path: |
-          *.pkg
-          eboot.bin
+        path: "*.pkg"
