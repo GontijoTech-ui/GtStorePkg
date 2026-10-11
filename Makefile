@@ -19,8 +19,8 @@ $(TARGET): $(OBJS)
 		-L$(OO_PS4_TOOLCHAIN)/lib $(LIBS) $(OO_PS4_TOOLCHAIN)/lib/crt1.o
 	$(OO_PS4_TOOLCHAIN)/bin/linux/create-fself -in=build/source.elf -out=build/source.oelf --eboot "$(TARGET)" --paid 0x3800000000000011 --authinfo 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 	
-	# Gera o .gp4 e o param.sfo automaticamente com o título definido
-	$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --title="GTSTORE" --files "$(TARGET)"
+	# Gera o .gp4 incluindo o binário e o param.sfo gerado pelo workflow
+	$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --files "$(TARGET) sce_sys/param.sfo"
 	
 	# Empacota o projeto gerando o .pkg final
 	$(OO_PS4_TOOLCHAIN)/bin/linux/PkgTool.Core pkg_build pkg.gp4 .
@@ -34,4 +34,4 @@ build/main.o: source/main.cpp
 		-Iinclude -o $@ $<
 
 clean:
-	rm -rf build $(TARGET) *.pkg pkg.gp4 param.sfo
+	rm -rf build $(TARGET) *.pkg pkg.gp4 sce_sys
