@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<ps4package>
+  <files>
+    <file path="homebrew.elf" targpath="eboot.bin" />
+    <file path="App Media-Assets/assets/icon0.png" targpath="sce_sys/icon0.png" />
+    <file path="App Media-Assets/assets/pic0.png" targpath="sce_sys/pic0.png" />
+  </files>
+  <types>
+    <type targpath="sce_sys/param.sfo" data="param.sfo" />
+  </types>
+</ps4package>
