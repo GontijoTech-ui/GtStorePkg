@@ -1,21 +1,21 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <cstring>
-#include <thread>
-#include <iostream>
+#include <string.h>
+#include <pthread.h>
+#include <stdio.h>
 
 #define LOCAL_PORT 8080
 
-// Função que roda em background gerindo a porta 8080
-void start_background_proxy() {
+// Função que roda em background gerindo a porta 8080 via POSIX thread
+void* start_background_proxy(void* arg) {
     int server_fd, client_socket;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
 
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0) return;
+    if (server_fd < 0) return NULL;
 
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
@@ -25,12 +25,12 @@ void start_background_proxy() {
 
     if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
         close(server_fd);
-        return;
+        return NULL;
     }
 
     if (listen(server_fd, 10) < 0) {
         close(server_fd);
-        return;
+        return NULL;
     }
 
     while (true) {
@@ -55,15 +55,17 @@ void start_background_proxy() {
     }
 
     close(server_fd);
+    return NULL;
 }
 
 int main() {
-    // Inicialização básica dos subsistemas da PS4
-    // Dispara o proxy local em background na porta 8080
-    std::thread proxy_thread(start_background_proxy);
-    proxy_thread.detach();
+    pthread_t thread_id;
+    
+    // Dispara a thread em background usando o subsistema nativo do FreeBSD/Orbis OS
+    pthread_create(&thread_id, NULL, start_background_proxy, NULL);
+    pthread_detach(thread_id);
 
-    // Mantém a aplicação rodando em segundo plano sem travar a consola
+    // Mantém a aplicação rodando em segundo plano sem consumir recursos excessivos
     while (true) {
         sleep(10);
     }
