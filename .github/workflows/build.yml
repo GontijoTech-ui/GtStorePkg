@@ -25,7 +25,7 @@ jobs:
         chmod +x "$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain/bin/linux/"*
         echo "OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain" >> "$GITHUB_ENV"
 
-    - name: Gerar param.sfo com Tipos Corretos
+    - name: Gerar param.sfo Válido
       run: |
         mkdir -p sce_sys
         python3 - << 'EOF'
@@ -35,11 +35,10 @@ jobs:
             magic = b'\x00PSF'
             version = b'\x01\x01\x00\x00'
             
-            # 0x0404 para inteiros e 0x0002 para strings UTF-8 aceites pelo LibOrbisPkg
             entries = [
                 ("APP_TYPE", 0x0404, 4, struct.pack("<I", 0)),
-                ("TITLE", 0x0002, 64, "GTSTORE".encode('utf-8') + b'\x00'),
-                ("TITLE_ID", 0x0002, 16, "NPXS39041".encode('utf-8') + b'\x00'),
+                ("TITLE", 0x0202, 64, "GTSTORE".encode('utf-8') + b'\x00'),
+                ("TITLE_ID", 0x0202, 16, "NPXS39041".encode('utf-8') + b'\x00'),
             ]
             
             count = len(entries)
@@ -78,7 +77,7 @@ jobs:
                 f.write(struct.pack("<I", count))
                 
                 for key_off, fmt, data_len, max_len, val_off in index_entries:
-                    f.write(struct.pack("<IHHII", key_off, fmt, data_len, max_len, val_off))
+                    f.write(struct.pack("<HHIII", key_off, fmt, data_len, max_len, val_off))
                     
                 f.write(keys_data)
                 f.write(vals_data)
