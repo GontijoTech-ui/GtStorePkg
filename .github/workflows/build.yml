@@ -13,10 +13,10 @@ jobs:
     - name: Checkout do Codigo
       uses: actions/checkout@v4
 
-    - name: Instalar Compiladores
+    - name: Instalar Compiladores e Ferramentas
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang lld make python3
+        sudo apt-get install -y clang lld make python3 imagemagick
 
     - name: Baixar OOSDK (OpenOrbis Toolchain)
       run: |
@@ -24,6 +24,13 @@ jobs:
         curl -sL https://github.com/LightningMods/OpenOrbis-PS4-Toolchain/releases/download/v0.50001/OOSDK.tar.gz | tar -xz -C "$GITHUB_WORKSPACE"
         chmod +x "$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain/bin/linux/"*
         echo "OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain" >> "$GITHUB_ENV"
+
+    - name: Forcar conversao real do Icone
+      run: |
+        mkdir -p sce_sys
+        if [ -f "sce_sys/icon0.png" ]; then
+          convert sce_sys/icon0.png -resize 512x512! PNG32:sce_sys/icon0.png
+        fi
 
     - name: Gerar param.sfo
       run: python3 gerar_sfo.py
