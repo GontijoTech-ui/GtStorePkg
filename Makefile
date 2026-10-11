@@ -2,7 +2,6 @@ TARGET = homebrew.elf
 OBJS = build/main.o
 CONTENT_ID = IV0002-NPXS39041_00-STOREUPD00000000
 
-# Bibliotecas essenciais do sistema da PS4 e rede
 LIBS = -luser_mem_sys -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceCommonDialog
 
 OO_PS4_TOOLCHAIN ?= OpenOrbis/PS4Toolchain
@@ -18,11 +17,7 @@ $(TARGET): $(OBJS)
 	$(LD) $(OBJS) -o build/source.elf -m elf_x86_64 -pie --script $(OO_PS4_TOOLCHAIN)/link.x \
 		-L$(OO_PS4_TOOLCHAIN)/lib $(LIBS) $(OO_PS4_TOOLCHAIN)/lib/crt1.o
 	$(OO_PS4_TOOLCHAIN)/bin/linux/create-fself -in=build/source.elf -out=build/source.oelf --eboot "$(TARGET)" --paid 0x3800000000000011 --authinfo 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-	
-	# Gera o .gp4 automaticamente de forma compatível com o PkgTool.Core
-	$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --files "$(TARGET) App Media-Assets/assets/icon0.png App Media-Assets/assets/pic0.png"
-	
-	# Empacota o projeto gerando o .pkg final
+	$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --files "$(TARGET)"
 	$(OO_PS4_TOOLCHAIN)/bin/linux/PkgTool.Core pkg_build pkg.gp4 .
 
 build/main.o: source/main.cpp
