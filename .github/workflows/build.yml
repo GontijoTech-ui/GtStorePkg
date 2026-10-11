@@ -28,14 +28,13 @@ jobs:
     - name: Gerar Assets Visuais de Suporte
       run: |
         mkdir -p "App Media-Assets/assets"
-        # Cria imagens PNG válidas via Python para satisfazer o empacotador sem erros
-        python3 -c "
-        png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+        python3 - << 'EOF'
+        png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB\x60\x82'
         for name in ['icon0.png', 'pic0.png']:
             path = 'App Media-Assets/assets/' + name
             with open(path, 'wb') as f:
                 f.write(png_data)
-        "
+        EOF
 
     - name: Compilar Código e Gerar PKG
       run: |
