@@ -1,64 +1,54 @@
+#include <time.h> // Correção para o bug do nanosleep na OpenOrbis
+#include "proxy.h"
+#include "log.h"
+
 #include <stdio.h>
 #include <unistd.h>
-#include <string.h>
 
-// Assinaturas do seu proxy
-namespace gtproxy {
-    bool start(unsigned short port);
-    void stop();
-}
-
-// Funções do sistema da Sony necessárias para a rede
+// Declaração direta para evitar problemas com os headers da SDK
 extern "C" int sceNetInit(void);
-extern "C" int sceSysmoduleLoadModule(int id);
+extern "C" int sceSysmoduleLoadModule(unsigned int id);
+// ATENCAO: IDs escritos de memoria. Confira em orbis/Sysmodule.h do seu toolchain.
+#define SCE_SYSMODULE_NET  0x0094
+#define SCE_SYSMODULE_HTTP 0x00E4
+#define SCE_SYSMODULE_SSL  0x00E5
 
-#define SCE_SYSMODULE_NET  0x00E1
-#define SCE_SYSMODULE_HTTP 0x00E2
-#define SCE_SYSMODULE_SSL  0x00E3
-
-void log_msg(const char* msg) {
-    FILE* f = fopen("/data/gtproxy_main.log", "a");
-    if(f) {
-        fprintf(f, "%s\n", msg);
-        fclose(f);
-    }
-}
+#ifndef LOCAL_PORT
+#define LOCAL_PORT 8080
+#endif
 
 int main() {
-    log_msg("====================================");
-    log_msg("GTSTORE: Passou pelo segurança do OS!");
-    
-    // 1. Carrega os módulos de sistema exigidos pelo upstream_sce
-    log_msg("Carregando módulos da Sony...");
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-    sceSysmoduleLoadModule(SCE_SYSMODULE_SSL);
-    sceSysmoduleLoadModule(SCE_SYSMODULE_HTTP);
+    gt_log("[gtstore] main iniciou\n");
 
-    // 2. Inicializa o stack de rede
-    int net_status = sceNetInit();
-    if (net_status == 0) {
-        log_msg("Rede inicializada com sucesso!");
-    } else {
-        FILE* f = fopen("/data/gtproxy_main.log", "a");
-        if(f) {
-            fprintf(f, "Aviso: sceNetInit falhou com erro: %d\n", net_status);
-            fclose(f);
-        }
-    }
-
-    // 3. Inicia o túnel
-    log_msg("Iniciando o servidor GTProxy na porta 8080...");
-    if (gtproxy::start(8080)) {
-        log_msg("SUCESSO: Proxy rodando e tunelando para loja.gontijotech.com.br!");
-    } else {
-        log_msg("ERRO CRÍTICO: Falha ao iniciar o Proxy na porta 8080.");
-    }
-
-    // 4. Mantém a aplicação viva para não ser fechada pelo sistema
-    while (1) {
+#ifdef GT_MINIMAL
+    // Build de teste de empacotamento: nao toca em rede nenhuma.
+    gt_log("[gtstore] modo MINIMAL\n");
+    while (true) {
         sleep(10);
     }
+#else
+    // 1. Carregar modulos de sistema necessarios para o proxy
+    gt_log("[gtstore] sysmodule NET=%d HTTP=%d SSL=%d\n",
+           sceSysmoduleLoadModule(SCE_SYSMODULE_NET),
+           sceSysmoduleLoadModule(SCE_SYSMODULE_HTTP),
+           sceSysmoduleLoadModule(SCE_SYSMODULE_SSL));
 
-    gtproxy::stop();
+    // 2. Inicializar a pilha de rede (pre-requisito de sceNetPoolCreate/sceHttpInit)
+    int nrc = sceNetInit();
+    gt_log("[gtstore] sceNetInit=0x%08x\n", (unsigned)nrc);
+
+    // 3. Iniciar o proxy
+    if (!gtproxy::start(LOCAL_PORT)) {
+        gt_log("[gtstore] proxy nao iniciou\n");
+        // Nao encerra: fica vivo para o erro nao virar tela de crash.
+    } else {
+        gt_log("[gtstore] proxy ativo na porta %u\n", (unsigned)gtproxy::port());
+    }
+
+    // Mantem a aplicacao viva e o tunel aberto
+    while (true) {
+        sleep(10);
+    }
+#endif
     return 0;
 }
