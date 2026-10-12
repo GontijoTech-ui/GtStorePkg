@@ -1,5 +1,6 @@
 #include "proxy.h"
 #include "upstream.h"
+#include "log.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -15,7 +16,6 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
-#include <stdarg.h>
 
 // --- INJEÇÃO PARA CORRIGIR BUGS DA OPENORBIS ---
 #ifndef CLOCK_MONOTONIC
@@ -35,19 +35,9 @@ extern "C" {
 #include <string>
 #include <vector>
 
-// NOVO SISTEMA DE LOG EM ARQUIVO (Grava no disco do PS4 em /data/)
+// Nunca registre a URL real: ela carrega o token.
 #ifndef GTPROXY_LOG
-static void file_log(const char* fmt, ...) {
-    FILE* f = fopen("/data/gtproxy.log", "a");
-    if(f) {
-        va_list args;
-        va_start(args, fmt);
-        vfprintf(f, fmt, args);
-        va_end(args);
-        fclose(f);
-    }
-}
-#define GTPROXY_LOG(...) file_log(__VA_ARGS__)
+#define GTPROXY_LOG(...) gt_log("[gtproxy] " __VA_ARGS__)
 #endif
 
 namespace {
@@ -60,8 +50,8 @@ const int kClientReadTimeoutSec = 15;
 const int kClientWriteTimeoutSec = 60;
 
 pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
-std::map<std::string, std::string> g_urls;
-std::deque<std::string> g_order;
+std::map<std::string, std::string> g_urls;  // id -> URL real
+std::deque<std::string> g_order;            // ordem de insercao
 unsigned long long g_rng = 0;
 unsigned short g_port = 0;
 int g_server_fd = -1;
@@ -89,6 +79,7 @@ std::string num(long long v) {
     return b;
 }
 
+// Remove CR/LF e controles de valores vindos do upstream (evita injecao de cabecalho).
 std::string clean(const std::string& s) {
     std::string out;
     for (size_t i = 0; i < s.size(); ++i) {
@@ -109,12 +100,20 @@ const char* reason_phrase(int s) {
     switch (s) {
         case 200: return "OK";
         case 206: return "Partial Content";
+        case 301: return "Moved Permanently";
+        case 302: return "Found";
+        case 304: return "Not Modified";
         case 400: return "Bad Request";
+        case 401: return "Unauthorized";
+        case 403: return "Forbidden";
         case 404: return "Not Found";
+        case 405: return "Method Not Allowed";
         case 416: return "Range Not Satisfiable";
+        case 431: return "Request Header Fields Too Large";
         case 500: return "Internal Server Error";
         case 502: return "Bad Gateway";
         case 503: return "Service Unavailable";
+        case 504: return "Gateway Timeout";
         default: return "Status";
     }
 }
@@ -151,6 +150,7 @@ void send_simple(int fd, int status, const std::string& body, bool head,
     send_all(fd, h);
 }
 
+// "bytes 0-99/1000" -> 1000; "bytes */1000" -> 1000; "*" ou ausente -> -1.
 long long content_range_total(const std::string& cr) {
     size_t slash = cr.rfind('/');
     if (slash == std::string::npos) return -1;
@@ -159,6 +159,7 @@ long long content_range_total(const std::string& cr) {
     return strtoll(p, NULL, 10);
 }
 
+// Aceita um unico intervalo: bytes=A-B, bytes=A- ou bytes=-N.
 bool valid_range(const std::string& v) {
     if (v.compare(0, 6, "bytes=") != 0) return false;
     size_t i = 6, a = 0, b = 0;
@@ -189,6 +190,7 @@ std::string sanitize_name(const std::string& n) {
     return out;
 }
 
+// xorshift64*; chamar com g_mu travado. Os ids so valem em loopback, nao e criptografia.
 unsigned long long next_rand() {
     if (g_rng == 0) {
         timespec ts;
@@ -210,12 +212,15 @@ bool lookup(const std::string& id, std::string& url) {
     return true;
 }
 
+// -------------------------------------------------------------- pedido HTTP
+
 struct Request {
     std::string method;
     std::string path;
     std::string range;
 };
 
+// 0 = ok; >0 = status HTTP de erro; -1 = descartar a conexao sem responder.
 int read_request(int fd, Request& req) {
     std::string data;
     char tmp[1024];
@@ -224,7 +229,7 @@ int read_request(int fd, Request& req) {
         ssize_t n = recv(fd, tmp, sizeof(tmp), 0);
         if (n < 0) {
             if (errno == EINTR) continue;
-            return -1;
+            return -1;  // inclui timeout
         }
         if (n == 0) return -1;
         data.append(tmp, (size_t)n);
@@ -254,6 +259,8 @@ int read_request(int fd, Request& req) {
     return 0;
 }
 
+// ------------------------------------------------------------------- download
+
 void serve_download(int fd, bool head, const std::string& url, const std::string& range,
                     const std::string& id) {
     std::unique_ptr<Upstream> up(upstream_create());
@@ -262,6 +269,8 @@ void serve_download(int fd, bool head, const std::string& url, const std::string
         return;
     }
 
+    // URLs assinadas costumam valer so para GET: um HEAD vira um GET de 1 byte,
+    // e o tamanho total sai do Content-Range.
     UpstreamHead uh;
     if (!up->open(url, head ? std::string("bytes=0-0") : range, uh)) {
         GTPROXY_LOG("%s: falha ao contatar o upstream\n", id.c_str());
@@ -304,10 +313,10 @@ void serve_download(int fd, bool head, const std::string& url, const std::string
         long n = up->read(&buf[0], buf.size());
         if (n < 0) {
             GTPROXY_LOG("%s: erro lendo do upstream\n", id.c_str());
-            break;
+            break;  // fecha a conexao: o cliente ve o corpo truncado como erro
         }
         if (n == 0) break;
-        if (!send_all(fd, &buf[0], (size_t)n)) break;
+        if (!send_all(fd, &buf[0], (size_t)n)) break;  // cliente saiu
     }
     up->close();
 }
@@ -398,7 +407,7 @@ void* accept_loop(void*) {
         if (client < 0) {
             if (errno == EINTR || errno == ECONNABORTED || errno == EAGAIN) continue;
             perror("accept");
-            usleep(100000);
+            usleep(100000);  // evita busy loop em erros persistentes (EMFILE, ENFILE...)
             continue;
         }
         tune_client(client);
@@ -452,11 +461,6 @@ bool start(unsigned short port_) {
         Lock l(&g_mu);
         if (g_started) return true;
     }
-    
-    GTPROXY_LOG("\n\n========================================\n");
-    GTPROXY_LOG("GTPROXY START CHAMADO - Porta: %u\n", port_);
-
-    // INICIALIZAÇÃO DA REDE RESTAURADA
     if (!upstream_init()) {
         GTPROXY_LOG("upstream_init falhou\n");
         return false;
@@ -464,35 +468,35 @@ bool start(unsigned short port_) {
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
-        GTPROXY_LOG("socket falhou\n");
+        perror("socket");
         abort_start(-1);
         return false;
     }
 
     int opt = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        GTPROXY_LOG("setsockopt falhou\n");
+        perror("setsockopt(SO_REUSEADDR)");  // nao fatal
     }
 
     sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);  // so conexoes locais
     addr.sin_port = htons(port_);
 
     if (bind(fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
-        GTPROXY_LOG("bind falhou\n");
+        perror("bind");
         abort_start(fd);
         return false;
     }
     if (listen(fd, 16) < 0) {
-        GTPROXY_LOG("listen falhou\n");
+        perror("listen");
         abort_start(fd);
         return false;
     }
     socklen_t len = sizeof(addr);
     if (getsockname(fd, (sockaddr*)&addr, &len) < 0) {
-        GTPROXY_LOG("getsockname falhou\n");
+        perror("getsockname");
         abort_start(fd);
         return false;
     }
@@ -519,7 +523,7 @@ bool start(unsigned short port_) {
         Lock l(&g_mu);
         g_started = true;
     }
-    GTPROXY_LOG("SUCESSO: Escutando em 127.0.0.1:%u\n", (unsigned)port());
+    GTPROXY_LOG("escutando em 127.0.0.1:%u\n", (unsigned)port());
     return true;
 }
 
@@ -532,7 +536,7 @@ void stop() {
     pthread_join(g_accept_thread, NULL);
     close(g_server_fd);
 
-    for (int i = 0; i < 50; ++i) { 
+    for (int i = 0; i < 50; ++i) {  // ate ~5 s para as conexoes ativas terminarem
         {
             Lock l(&g_mu);
             if (g_active == 0) break;
