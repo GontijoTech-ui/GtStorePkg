@@ -12,8 +12,8 @@ SRCS = $(wildcard source/*.cpp)
 OBJS = $(patsubst source/%.cpp,build/%.o,$(SRCS))
 DEPS = $(OBJS:.o=.d)
 
-# Se o link falhar com "cannot find -luser_mem_sys", remova-o daqui.
-LIBS = -luser_mem_sys -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceCommonDialog -lSceHttp -lSceSsl
+# Adicionada a biblioteca -lSceLibcInternal para corrigir o erro do mspace
+LIBS = -luser_mem_sys -lSceLibcInternal -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceCommonDialog -lSceHttp -lSceSsl
 
 AUTHINFO = 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
