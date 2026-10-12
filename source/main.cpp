@@ -44,7 +44,7 @@ void* start_background_proxy(void* arg) {
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: application/json; charset=utf-8\r\n"
                 "Connection: close\r\n\r\n"
-                "{\"status\":\"active\",\"target\":\"https://loja.gontijotech.com.br\"}";
+                "{\"status\":\"active\",\"target\":\"https://seu-dominio.com\"}";
 
             write(client_socket, http_response, strlen(http_response));
         }
