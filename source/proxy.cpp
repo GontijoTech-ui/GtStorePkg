@@ -22,7 +22,9 @@
 #endif
 
 extern "C" {
+    struct timespec;
     int usleep(unsigned int usec);
+    int clock_gettime(int clock_id, struct timespec *tp);
 }
 // -----------------------------------------------
 
