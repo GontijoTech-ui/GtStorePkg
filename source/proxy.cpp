@@ -456,14 +456,11 @@ bool start(unsigned short port_) {
     GTPROXY_LOG("\n\n========================================\n");
     GTPROXY_LOG("GTPROXY START CHAMADO - Porta: %u\n", port_);
 
-    // TESTE ISOLADO: Comentamos o carregamento da Sony para ver se é isto que crasha
-    /*
+    // INICIALIZAÇÃO DA REDE RESTAURADA
     if (!upstream_init()) {
         GTPROXY_LOG("upstream_init falhou\n");
         return false;
     }
-    */
-    GTPROXY_LOG("TESTE ISOLADO: upstream_init() foi IGNORADO!\n");
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
