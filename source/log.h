@@ -1,5 +1,3 @@
-// Log simples: grava em arquivo (para ver o que aconteceu no console) e em stderr.
-// Tenta /data e /mnt/usb0; se nenhum for gravavel, so stderr.
 #pragma once
 #include <stdarg.h>
 #include <stdio.h>
