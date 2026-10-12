@@ -40,7 +40,7 @@ $(TARGET): build/source.elf
 > $(BIN)/create-fself -in=$< -out=$@ --eboot "$@"
 
 build/source.elf: $(OBJS) | build
-> $(CXX) $(CXXFLAGS) -Wl,-T$(OO_PS4_TOOLCHAIN)/link.x -o $@ $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS)
+> $(LD) -m elf_x86_64 -pie --eh-frame-hdr --script $(OO_PS4_TOOLCHAIN)/link.x -o $@ $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS)
 
 build/%.o: source/%.cpp | build
 > $(CXX) $(CXXFLAGS) -c -o $@ $<
