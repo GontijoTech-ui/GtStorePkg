@@ -14,8 +14,8 @@ all: $(TARGET)
 
 $(TARGET): $(OBJS)
 >@mkdir -p build pkg_dir/sce_sys
->$(LD) $(OBJS) -o build/source.elf -m elf_x86_64 -pie --script $(OO_PS4_TOOLCHAIN)/link.x -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS) $(OO_PS4_TOOLCHAIN)/lib/crt1.o
->$(OO_PS4_TOOLCHAIN)/bin/linux/create-fself -in=build/source.elf -out=pkg_dir/$(TARGET)
+>$(LD) -m elf_x86_64 -pie --script $(OO_PS4_TOOLCHAIN)/link.x -o build/source.elf $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS)
+>$(OO_PS4_TOOLCHAIN)/bin/linux/create-fself -in=build/source.elf -out=pkg_dir/$(TARGET) --eboot "$(TARGET)" --paid 0x3800000000000011 --authinfo 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 >cp sce_sys/param.sfo pkg_dir/sce_sys/param.sfo
 >cp sce_sys/icon0.png pkg_dir/sce_sys/icon0.png
 >$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) pkg_dir
