@@ -77,7 +77,17 @@ jobs:
     - name: Gerar param.sfo
       run: make sce_sys/param.sfo
 
+    - name: Conferir arquivos obrigatorios
+      run: |
+        for f in sce_sys/about/right.sprx sce_module/libc.prx sce_module/libSceFios2.prx sce_sys/icon0.png; do
+          [ -f "$f" ] || { echo "::error::$f nao encontrado no repositorio"; exit 1; }
+        done
+
     - name: Compilar Codigo e Gerar PKG
+      # MINIMAL=1: app que so fica dormindo, para testar o empacotamento.
+      # Quando o PKG abrir no PS4, remova a linha "MINIMAL" abaixo para gerar a versao completa.
+      env:
+        MINIMAL: "1"
       run: make pkg
 
     - name: Guardar o Artefacto PKG
