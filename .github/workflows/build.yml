@@ -3,12 +3,23 @@ name: Build GTSTORE PS4 PKG
 on:
   push:
     branches: [ "master", "main" ]
+  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OOSDK_VERSION: v0.50001
+  # Preencha com o resultado de `sha256sum OOSDK.tar.gz` para verificar o download.
+  OOSDK_SHA256: ""
+  DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
+    timeout-minutes: 15
+
     steps:
     - name: Checkout do Codigo
       uses: actions/checkout@v4
@@ -18,28 +29,61 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y clang lld make python3 imagemagick
 
+    - name: Cache do OOSDK
+      uses: actions/cache@v4
+      with:
+        path: oosdk.tar.gz
+        key: oosdk-${{ env.OOSDK_VERSION }}
+
     - name: Baixar OOSDK (OpenOrbis Toolchain)
       run: |
-        echo "A descarregar o OOSDK..."
-        curl -sL https://github.com/LightningMods/OpenOrbis-PS4-Toolchain/releases/download/v0.50001/OOSDK.tar.gz | tar -xz -C "$GITHUB_WORKSPACE"
-        chmod +x "$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain/bin/linux/"*
-        echo "OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain" >> "$GITHUB_ENV"
-
-    - name: Forcar conversao real do Icone para 24-bit sem alpha
-      run: |
-        mkdir -p sce_sys
-        if [ -f "sce_sys/icon0.png" ]; then
-          convert sce_sys/icon0.png -resize 512x512! -alpha off -type TrueColor PNG24:sce_sys/icon0.png
+        if [ ! -f oosdk.tar.gz ]; then
+          echo "A descarregar o OOSDK ${OOSDK_VERSION}..."
+          curl -fsSL --retry 3 -o oosdk.tar.gz \
+            "https://github.com/LightningMods/OpenOrbis-PS4-Toolchain/releases/download/${OOSDK_VERSION}/OOSDK.tar.gz"
         fi
 
+        if [ -n "$OOSDK_SHA256" ]; then
+          echo "$OOSDK_SHA256  oosdk.tar.gz" | sha256sum -c -
+        else
+          echo "::warning::OOSDK_SHA256 vazio, download nao verificado"
+          sha256sum oosdk.tar.gz
+        fi
+
+        tar -xzf oosdk.tar.gz -C "$GITHUB_WORKSPACE"
+
+        TOOLCHAIN="$GITHUB_WORKSPACE/OpenOrbis/PS4Toolchain"
+        if [ ! -d "$TOOLCHAIN" ]; then
+          echo "::error::Estrutura inesperada no OOSDK (esperado OpenOrbis/PS4Toolchain)"
+          ls -la "$GITHUB_WORKSPACE"
+          exit 1
+        fi
+
+        chmod +x "$TOOLCHAIN/bin/linux/"*
+        echo "OO_PS4_TOOLCHAIN=$TOOLCHAIN" >> "$GITHUB_ENV"
+
+    - name: Preparar icone (512x512, 24-bit, sem alpha)
+      run: |
+        if [ ! -f sce_sys/icon0.png ]; then
+          echo "::error::sce_sys/icon0.png nao encontrado"
+          exit 1
+        fi
+        convert sce_sys/icon0.png \
+          -background black -alpha remove -alpha off \
+          -resize 512x512 -gravity center -extent 512x512 \
+          -type TrueColor PNG24:sce_sys/icon0.png
+        identify -format '%f: %wx%h %[channels] %z-bit\n' sce_sys/icon0.png
+
     - name: Gerar param.sfo
-      run: python3 gerar_sfo.py
+      run: make sce_sys/param.sfo
 
     - name: Compilar Codigo e Gerar PKG
-      run: make
+      run: make pkg
 
     - name: Guardar o Artefacto PKG
       uses: actions/upload-artifact@v4
       with:
         name: GTSTORE-Client-Pkg
         path: "*.pkg"
+        if-no-files-found: error
+        retention-days: 14
