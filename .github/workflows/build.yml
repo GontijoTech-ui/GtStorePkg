@@ -84,10 +84,7 @@ jobs:
         done
 
     - name: Compilar Codigo e Gerar PKG
-      # MINIMAL=1: app que so fica dormindo, para testar o empacotamento.
-      # Quando o PKG abrir no PS4, remova a linha "MINIMAL" abaixo para gerar a versao completa.
-      env:
-        MINIMAL: "1"
+      # Para gerar o app vazio de teste (so dorme, sem rede), troque por: make pkg MINIMAL=1
       run: make pkg
 
     - name: Guardar o Artefacto PKG
