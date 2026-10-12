@@ -1,56 +1,57 @@
-import sys
-import struct
-import urllib.request
-import argparse
+.RECIPEPREFIX = >
+.PHONY: all pkg clean fix_icon
 
-def patch_sfo(content_id, title, output_file):
-    url = "https://raw.githubusercontent.com/PacBrew/ps4-openorbis-sample/master/sce_sys/param.sfo"
-    print(f"Baixando SFO base oficial de {url}...")
-    
-    # Baixa o SFO original do template
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req) as response:
-        data = bytearray(response.read())
+TARGET     = eboot.bin
+CONTENT_ID = UP0000-GTST00001_00-GTSTOREAPP000000
 
-    magic = data[0:4]
-    if magic != b"\x00PSF":
-        print("Erro: Arquivo SFO base invalido.")
-        sys.exit(1)
+OO_PS4_TOOLCHAIN ?= $(CURDIR)/OpenOrbis/PS4Toolchain
+BIN = $(OO_PS4_TOOLCHAIN)/bin/linux
 
-    key_ofs, data_ofs, count = struct.unpack("<III", data[8:20])
-    new_title_id = content_id[7:16].encode('utf-8')
-    new_content_id = content_id.encode('utf-8')
-    new_title = title.encode('utf-8')
+SRCS = $(wildcard source/*.cpp)
+OBJS = $(patsubst source/%.cpp,build/%.o,$(SRCS))
+DEPS = $(OBJS:.o=.d)
 
-    # Faz a cirurgia byte a byte para injetar os seus dados no arquivo oficial
-    for i in range(count):
-        entry_ofs = 20 + (i * 16)
-        k_ofs, fmt, length, max_len, d_ofs = struct.unpack("<HHIII", data[entry_ofs:entry_ofs+16])
-        
-        k_start = key_ofs + k_ofs
-        k_end = data.find(b"\x00", k_start)
-        key_name = data[k_start:k_end]
-        d_start = data_ofs + d_ofs
+LIBS = -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceHttp -lSceSsl -lSceCommonDialog
 
-        if key_name == b"CONTENT_ID":
-            data[d_start:d_start+36] = new_content_id
-        elif key_name in (b"TITLE_ID", b"NP_COMMUNICATION_ID"):
-            data[d_start:d_start+9] = new_title_id
-        elif key_name == b"TITLE":
-            if len(new_title) >= max_len:
-                new_title = new_title[:max_len-1]
-            padded_title = new_title.ljust(max_len, b"\x00")
-            data[d_start:d_start+max_len] = padded_title
-            # Atualiza o tamanho real da string na tabela de índices
-            struct.pack_into("<I", data, entry_ofs + 4, len(new_title) + 1)
-            
-    with open(output_file, "wb") as f:
-        f.write(data)
-    print("param.sfo injetado e gerado com sucesso!")
+CC  = clang --target=x86_64-pc-freebsd12-elf --sysroot=$(OO_PS4_TOOLCHAIN)
+CXX = clang++ --target=x86_64-pc-freebsd12-elf --sysroot=$(OO_PS4_TOOLCHAIN)
+LD  = ld.lld
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--content-id", required=True)
-    parser.add_argument("--output", required=True)
-    args = parser.parse_args()
-    patch_sfo(args.content_id, "GTSTORE", args.output)
+CXXFLAGS = -fPIC -funwind-tables -MMD -MP -Wall -Wextra -std=c++11 \
+           -isysroot $(OO_PS4_TOOLCHAIN) \
+           -isystem $(OO_PS4_TOOLCHAIN)/include \
+           -isystem $(OO_PS4_TOOLCHAIN)/include/c++/v1 \
+           -Iinclude
+
+all: pkg
+
+pkg: pkg.gp4
+> $(BIN)/PkgTool.Core pkg_build pkg.gp4 .
+
+pkg.gp4: $(TARGET) sce_sys/param.sfo fix_icon
+> $(BIN)/create-gp4 -out $@ --content-id=$(CONTENT_ID) --files "$(TARGET) sce_sys/param.sfo sce_sys/icon0.png"
+
+fix_icon:
+> @echo "Garantindo icon0.png sem canal alfa..."
+> convert sce_sys/icon0.png -background black -alpha remove -alpha off PNG24:sce_sys/icon0.png || true
+
+sce_sys/param.sfo: gerar_sfo.py
+> python3 gerar_sfo.py --content-id $(CONTENT_ID) --output $@
+
+# Comando puro do FSELF sem flags mutantes que causam o CE-40841-8
+$(TARGET): build/source.elf
+> $(BIN)/create-fself -in=$< -out=$@
+
+build/source.elf: $(OBJS) | build
+> $(LD) -m elf_x86_64 -pie --eh-frame-hdr --script $(OO_PS4_TOOLCHAIN)/link.x -o $@ $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS)
+
+build/%.o: source/%.cpp | build
+> $(CXX) $(CXXFLAGS) -c -o $@ $<
+
+build:
+> @mkdir -p $@
+
+clean:
+> rm -rf build $(TARGET) *.pkg pkg.gp4
+
+-include $(DEPS)
