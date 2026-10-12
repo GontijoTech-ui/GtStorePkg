@@ -4,18 +4,16 @@
 TARGET     = eboot.bin
 CONTENT_ID = UP0000-GTST00001_00-GTSTOREAPP000000
 
-# Caminho absoluto. Sobrescreva com: make OO_PS4_TOOLCHAIN=/caminho/PS4Toolchain
 OO_PS4_TOOLCHAIN ?= $(CURDIR)/OpenOrbis/PS4Toolchain
 BIN = $(OO_PS4_TOOLCHAIN)/bin/linux
 
-SRCS = $(wildcard source/*.cpp)
+# ISOLAMENTO: Vamos compilar APENAS o main.cpp para descartar o proxy
+SRCS = source/main.cpp
 OBJS = $(patsubst source/%.cpp,build/%.o,$(SRCS))
 DEPS = $(OBJS:.o=.d)
 
-# Removidos o -luser_mem_sys e o -lSceLibcInternal que causam o crash CE-30008-1 em consolas Retail
-LIBS = -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceCommonDialog -lSceHttp -lSceSsl
-
-AUTHINFO = 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+# ISOLAMENTO: Removemos SceHttp, SceSsl e SceCommonDialog
+LIBS = -lc++ -lc -lkernel -lSceNet -lSceSysmodule
 
 CC  = clang --target=x86_64-pc-freebsd12-elf --sysroot=$(OO_PS4_TOOLCHAIN)
 CXX = clang++ --target=x86_64-pc-freebsd12-elf --sysroot=$(OO_PS4_TOOLCHAIN)
@@ -39,10 +37,13 @@ sce_sys/param.sfo: gerar_sfo.py
 > python3 gerar_sfo.py --content-id $(CONTENT_ID) --output $@
 
 $(TARGET): build/source.elf
-> $(BIN)/create-fself -in=$< -out=$@ --eboot "$@" --paid 0x3800000000000011 --authinfo $(AUTHINFO)
+> $(BIN)/create-fself -in=$< -out=$@ --paid 0x3800000000000011
 
 build/source.elf: $(OBJS) | build
 > $(LD) -m elf_x86_64 -pie --eh-frame-hdr --script $(OO_PS4_TOOLCHAIN)/link.x -o $@ $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS)
+> @echo "=== DEPENDENCIAS DO ELF (NEEDED) ==="
+> $(OO_PS4_TOOLCHAIN)/bin/linux/llvm-readelf -d $@ | grep NEEDED || true
+> @echo "===================================="
 
 build/%.o: source/%.cpp | build
 > $(CXX) $(CXXFLAGS) -c -o $@ $<
