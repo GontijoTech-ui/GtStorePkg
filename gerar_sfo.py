@@ -1,108 +1,95 @@
-#!/usr/bin/env python3
-"""Gera sce_sys/param.sfo para o GTSTORE (PS4)."""
+import sys
+import struct
 import argparse
-import os
-import re
 
-DEFAULT_CONTENT_ID = "UP0000-GTST00001_00-GTSTOREAPP000000"
-FMT_STR = 0x0204  # string UTF-8 terminada em nulo
-FMT_INT = 0x0404  # inteiro de 32 bits
-
-
-def to_u32(val):
-    return val.to_bytes(4, "little")
-
-
-def to_u16(val):
-    return val.to_bytes(2, "little")
-
-
-def text(key, value, max_len):
-    return (key, FMT_STR, max_len, value.encode("utf-8") + b"\x00")
-
-
-def integer(key, value):
-    return (key, FMT_INT, 4, to_u32(value))
-
-
-def build_entries(content_id):
-    if not re.fullmatch(r"[A-Z]{2}\d{4}-[A-Z]{4}\d{5}_\d{2}-[A-Z0-9]{16}", content_id):
-        raise SystemExit(f"CONTENT_ID invalido: {content_id!r}")
-
-    # CONTENT_ID = XXNNNN-TITLEID99_00-LABEL..., o TITLE_ID sao os 9 caracteres do meio.
+def create_sfo(content_id, output_path):
+    # Extrai o TITLE_ID a partir do CONTENT_ID (ex: UP0000-GTST00001_00... -> GTST00001)
     title_id = content_id[7:16]
-
-    return [
-        integer("APP_TYPE", 1),
-        text("APP_VER", "01.00", 8),
-        integer("ATTRIBUTE", 0),
-        text("CATEGORY", "gd", 4),
-        text("CONTENT_ID", content_id, 48),
-        integer("DOWNLOAD_DATA_SIZE", 0),
-        text("FORMAT", "obs", 4),
-        text("NP_TITLE_ID", title_id, 12),
-        integer("PARENTAL_LEVEL", 1),
-        integer("SYSTEM_VER", 0),
-        text("TITLE", "GTSTORE", 128),
-        text("TITLE_ID", title_id, 12),
-        text("VERSION", "01.00", 8),
+    
+    # Lista de chaves obrigatórias para a PS4 aceitar a app
+    keys = [
+        b"APP_TYPE", b"APP_VER", b"ATTRIBUTE", b"CATEGORY", 
+        b"CONTENT_ID", b"DOWNLOAD_DATA_SIZE", b"FORMAT", 
+        b"NP_COMMUNICATION_ID", b"PUBTOOLINFO", b"PUBTOOLVER", 
+        b"SYSTEM_VER", b"TITLE", b"TITLE_ID", b"VERSION"
     ]
+    
+    # Dicionário com os valores (formato, tamanho_maximo, valor)
+    # 0x0404 = Número Inteiro | 0x0204 = Texto (String)
+    vals = {
+        b"APP_TYPE": (0x0404, 4, 1),
+        b"APP_VER": (0x0204, 8, b"01.00"),
+        b"ATTRIBUTE": (0x0404, 4, 0),
+        b"CATEGORY": (0x0204, 4, b"gd"),
+        b"CONTENT_ID": (0x0204, 48, content_id.encode('utf-8')),
+        b"DOWNLOAD_DATA_SIZE": (0x0404, 4, 0),
+        b"FORMAT": (0x0204, 4, b"obs"),
+        b"NP_COMMUNICATION_ID": (0x0204, 16, title_id.encode('utf-8')),
+        b"PUBTOOLINFO": (0x0204, 256, b"c_date=20261012,c_time=000000,st_type=app"),
+        b"PUBTOOLVER": (0x0404, 4, 0x00010000),
+        b"SYSTEM_VER": (0x0404, 4, 0x05050000),
+        b"TITLE": (0x0204, 128, b"GTSTORE"),
+        b"TITLE_ID": (0x0204, 16, title_id.encode('utf-8')),
+        b"VERSION": (0x0204, 8, b"01.00")
+    }
 
-
-def write_sfo(content_id, output):
-    entries = sorted(build_entries(content_id), key=lambda e: e[0])
-
-    count = len(entries)
-    key_table_offset = 20 + count * 16  # header (20) + indice (16 por entrada)
-
-    keys_data = bytearray()
-    vals_data = bytearray()
-    index_entries = []
-
-    for key, fmt, max_len, val_bytes in entries:
-        if len(val_bytes) > max_len:
-            raise SystemExit(
-                f"{key}: valor com {len(val_bytes)} bytes excede max_len ({max_len})"
-            )
-
-        key_off = len(keys_data)
-        keys_data.extend(key.encode("ascii") + b"\x00")
-
-        val_off = len(vals_data)
-        vals_data.extend(val_bytes + b"\x00" * (max_len - len(val_bytes)))
-
-        index_entries.append((key_off, fmt, len(val_bytes), max_len, val_off))
-
-    while len(keys_data) % 4 != 0:
-        keys_data.append(0)
-
-    data_table_offset = key_table_offset + len(keys_data)
-
-    out_dir = os.path.dirname(output)
-    if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-
-    with open(output, "wb") as f:
-        f.write(b"\x00PSF")
-        f.write(b"\x01\x01\x00\x00")
-        f.write(to_u32(key_table_offset))
-        f.write(to_u32(data_table_offset))
-        f.write(to_u32(count))
-
-        for key_off, fmt, data_len, max_len, val_off in index_entries:
-            f.write(to_u16(key_off))
-            f.write(to_u16(fmt))
-            f.write(to_u32(data_len))
-            f.write(to_u32(max_len))
-            f.write(to_u32(val_off))
-
-        f.write(keys_data)
-        f.write(vals_data)
-
+    keys.sort()
+    
+    key_table = b""
+    key_offsets = []
+    for k in keys:
+        key_offsets.append(len(key_table))
+        key_table += k + b"\x00"
+        
+    while len(key_table) % 4 != 0:
+        key_table += b"\x00"
+        
+    data_table = b""
+    data_offsets = []
+    for k in keys:
+        fmt, max_len, v = vals[k]
+        pad_len = 0
+        if fmt == 0x0404:
+            v_bytes = struct.pack("<I", v)
+            max_len = 4
+            real_len = 4
+        else:
+            v_bytes = v + b"\x00"
+            real_len = len(v_bytes)
+            pad_len = max_len - real_len
+            
+        data_offsets.append(len(data_table))
+        data_table += v_bytes + (b"\x00" * pad_len)
+        
+    # Cabeçalho do SFO
+    magic = b"\x00PSF"
+    version = b"\x01\x01\x00\x00"
+    
+    key_ofs = 20 + len(keys) * 16
+    data_ofs = key_ofs + len(key_table)
+    
+    header = magic + version + struct.pack("<III", key_ofs, data_ofs, len(keys))
+    
+    # Tabela de Índices
+    idx_table = b""
+    for i, k in enumerate(keys):
+        fmt, max_len, v = vals[k]
+        if fmt == 0x0404:
+            real_len = 4
+        else:
+            real_len = len(v) + 1
+        idx_table += struct.pack("<HHIII", key_offsets[i], fmt, real_len, max_len, data_offsets[i])
+        
+    # Salva o arquivo final
+    with open(output_path, "wb") as f:
+        f.write(header)
+        f.write(idx_table)
+        f.write(key_table)
+        f.write(data_table)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Gera o param.sfo do GTSTORE.")
-    parser.add_argument("--content-id", default=DEFAULT_CONTENT_ID)
-    parser.add_argument("--output", default="sce_sys/param.sfo")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--content-id", required=True)
+    parser.add_argument("--output", required=True)
     args = parser.parse_args()
-    write_sfo(args.content_id, args.output)
+    create_sfo(args.content_id, args.output)
