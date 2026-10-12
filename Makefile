@@ -14,7 +14,7 @@ all: $(TARGET)
 
 $(TARGET): $(OBJS)
 >@mkdir -p build pkg_dir/sce_sys
->$(LD) -m elf_x86_64 -pie --script $(OO_PS4_TOOLCHAIN)/link.x -o build/source.elf $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OO_PS4_TOOLCHAIN)/lib/crti.o $(OO_PS4_TOOLCHAIN)/lib/crtbegin.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS) $(OO_PS4_TOOLCHAIN)/lib/crtend.o $(OO_PS4_TOOLCHAIN)/lib/crtn.o
+>$(LD) $(OBJS) -o build/source.elf -m elf_x86_64 -pie --script $(OO_PS4_TOOLCHAIN)/link.x -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS) $(OO_PS4_TOOLCHAIN)/lib/crt1.o
 >$(OO_PS4_TOOLCHAIN)/bin/linux/create-fself -in=build/source.elf -out=pkg_dir/$(TARGET)
 >cp sce_sys/param.sfo pkg_dir/sce_sys/param.sfo
 >cp sce_sys/icon0.png pkg_dir/sce_sys/icon0.png
