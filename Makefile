@@ -8,9 +8,9 @@ CONTENT_ID = IV0000-GTST00001_00-GTSTOREAPP000000
 OO_PS4_TOOLCHAIN ?= $(CURDIR)/OpenOrbis/PS4Toolchain
 BIN = $(OO_PS4_TOOLCHAIN)/bin/linux
 
-# Onde ficam libc.prx e libSceFios2.prx. Se o seu toolchain guarda em outro lugar,
-# sobrescreva: make PRX_SRC=/outro/caminho
+# Onde ficam libc.prx e libSceFios2.prx. Se nao existirem la, usa os de sce_module/
 PRX_SRC ?= $(OO_PS4_TOOLCHAIN)/sce_module
+RIGHT_SRC ?= $(OO_PS4_TOOLCHAIN)/sce_sys/about/right.sprx
 
 # Teste de empacotamento: make MINIMAL=1 gera um app que so fica dormindo.
 ifeq ($(MINIMAL),1)
@@ -38,22 +38,22 @@ all: pkg
 pkg: pkg.gp4
 > $(BIN)/PkgTool.Core pkg_build pkg.gp4 .
 
-# Copia libc.prx e libSceFios2.prx do toolchain (o sample do OpenOrbis empacota os dois).
 prx:
-> @mkdir -p sce_module
+> @mkdir -p sce_module sce_sys/about
 > @for f in libc.prx libSceFios2.prx; do \
->   if [ -f "$(PRX_SRC)/$$f" ]; then cp -f "$(PRX_SRC)/$$f" sce_module/; \
->   else echo "AVISO: $(PRX_SRC)/$$f nao encontrado (use PRX_SRC=...)"; fi; \
+>   if [ -f "$(PRX_SRC)/$$f" ]; then cp -f "$(PRX_SRC)/$$f" sce_module/; fi; \
+>   if [ ! -f "sce_module/$$f" ]; then echo "ERRO: sce_module/$$f nao encontrado"; exit 1; fi; \
 > done
+> @if [ ! -f sce_sys/about/right.sprx ] && [ -f "$(RIGHT_SRC)" ]; then cp -f "$(RIGHT_SRC)" sce_sys/about/right.sprx; fi
+> @if [ ! -f sce_sys/about/right.sprx ]; then echo "ERRO: sce_sys/about/right.sprx nao encontrado"; exit 1; fi
 
-pkg.gp4: $(TARGET) sce_sys/param.sfo sce_sys/icon0.png prx
-> $(BIN)/create-gp4 -out $@ --content-id=$(CONTENT_ID) --files "$(TARGET) sce_sys/param.sfo sce_sys/icon0.png $$(ls sce_module/*.prx 2>/dev/null | tr '\n' ' ')"
+pkg.gp4: pkg.gp4.in $(TARGET) sce_sys/param.sfo sce_sys/icon0.png prx Makefile
+> sed 's/@CONTENT_ID@/$(CONTENT_ID)/' pkg.gp4.in > $@
 
 sce_sys/param.sfo: gerar_sfo.py Makefile
 > python3 gerar_sfo.py --content-id $(CONTENT_ID) --output $@
 
-# create-fself: -out gera o .oelf e --eboot gera o eboot.bin. Eram o MESMO arquivo
-# antes (eboot.bin), o que pode corromper o eboot. Agora sao arquivos diferentes.
+# -out gera o .oelf e --eboot gera o eboot.bin (antes eram o mesmo arquivo)
 $(TARGET): build/source.elf
 > $(BIN)/create-fself -in=$< -out=build/source.oelf --eboot "$@" --paid 0x3800000000000011
 
@@ -67,6 +67,6 @@ build:
 > @mkdir -p $@
 
 clean:
-> rm -rf build sce_module $(TARGET) *.pkg pkg.gp4 sce_sys/param.sfo
+> rm -rf build $(TARGET) *.pkg pkg.gp4 sce_sys/param.sfo
 
 -include $(DEPS)
