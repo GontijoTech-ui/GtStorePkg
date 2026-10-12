@@ -36,13 +36,14 @@ pkg.gp4: $(TARGET) sce_sys/param.sfo sce_sys/icon0.png
 sce_sys/param.sfo: gerar_sfo.py
 > python3 gerar_sfo.py --content-id $(CONTENT_ID) --output $@
 
+# Restaurada a flag --eboot que é obrigatória para o conversor saber o que gerar
 $(TARGET): build/source.elf
-> $(BIN)/create-fself -in=$< -out=$@ --paid 0x3800000000000011
+> $(BIN)/create-fself -in=$< --eboot $@ --paid 0x3800000000000011
 
 build/source.elf: $(OBJS) | build
 > $(LD) -m elf_x86_64 -pie --eh-frame-hdr --script $(OO_PS4_TOOLCHAIN)/link.x -o $@ $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS)
 > @echo "=== DEPENDENCIAS DO ELF (NEEDED) ==="
-> $(OO_PS4_TOOLCHAIN)/bin/linux/llvm-readelf -d $@ | grep NEEDED || true
+> readelf -d $@ | grep NEEDED || true
 > @echo "===================================="
 
 build/%.o: source/%.cpp | build
