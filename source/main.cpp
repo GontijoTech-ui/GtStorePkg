@@ -1,35 +1,25 @@
-#include <time.h> // Correção para o bug do nanosleep na OpenOrbis
-#include "proxy.h"
-
 #include <stdio.h>
 #include <unistd.h>
 
-// Declaração direta para evitar problemas com os headers da SDK
-extern "C" int sceSysmoduleLoadModule(unsigned int id);
-#define SCE_SYSMODULE_NET  0x0094
-#define SCE_SYSMODULE_HTTP 0x00E4
-#define SCE_SYSMODULE_SSL  0x00E5
-
-#ifndef LOCAL_PORT
-#define LOCAL_PORT 8080
-#endif
+void test_log(const char* path, const char* msg) {
+    FILE* f = fopen(path, "w");
+    if (f) {
+        fprintf(f, "%s\n", msg);
+        fclose(f);
+    }
+}
 
 int main() {
-    // 1. Carregar modulos de sistema necessarios para o proxy
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-    sceSysmoduleLoadModule(SCE_SYSMODULE_HTTP);
-    sceSysmoduleLoadModule(SCE_SYSMODULE_SSL);
+    // 1. Tenta escrever no /data/ (se o sandbox permitir)
+    test_log("/data/gtproxy_vivo.log", "Passei pelo loader! Log no /data/ funcionou.");
+    
+    // 2. Tenta escrever no pendrive (se o sandbox barrar o /data/)
+    test_log("/mnt/usb0/gtproxy_vivo.log", "Passei pelo loader! Log no USB0 funcionou.");
+    test_log("/mnt/usb1/gtproxy_vivo.log", "Passei pelo loader! Log no USB1 funcionou.");
 
-    // 2. Iniciar o proxy
-    if (!gtproxy::start(LOCAL_PORT)) {
-        fprintf(stderr, "proxy nao iniciou\n");
-        return 1;
-    }
-
-    // Mantem a aplicacao viva e o tunel aberto
-    while (true) {
+    // Mantém o processo vivo para o PS4 não fechar a tela
+    while (1) {
         sleep(10);
     }
-    
     return 0;
 }
