@@ -6,6 +6,7 @@
 // token, entao nao a desative.
 #include "upstream.h"
 #include "sce_http_decl.h"
+#include "log.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -25,7 +26,7 @@ int g_http_ctx = -1;
 int g_tmpl = -1;
 
 void log_err(const char* what, int rc) {
-    fprintf(stderr, "[gtproxy] %s falhou: 0x%08x\n", what, (unsigned)rc);
+    gt_log("[gtproxy] %s falhou: 0x%08x\n", what, (unsigned)rc);
 }
 
 // Procura "Nome: valor" no bloco de cabecalhos (sem diferenciar maiusculas).
