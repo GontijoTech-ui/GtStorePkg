@@ -13,12 +13,10 @@ LD = ld.lld
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
->@mkdir -p build pkg_dir/sce_sys
+>@mkdir -p build
 >$(LD) -m elf_x86_64 -pie --script $(OO_PS4_TOOLCHAIN)/link.x -o build/source.elf $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS)
->$(OO_PS4_TOOLCHAIN)/bin/linux/create-fself -in=build/source.elf -out=pkg_dir/$(TARGET) --eboot "$(TARGET)" --paid 0x3800000000000011 --authinfo 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
->cp sce_sys/param.sfo pkg_dir/sce_sys/param.sfo
->cp sce_sys/icon0.png pkg_dir/sce_sys/icon0.png
->$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) pkg_dir
+>$(OO_PS4_TOOLCHAIN)/bin/linux/create-fself -in=build/source.elf -out=$(TARGET) --eboot "$(TARGET)" --paid 0x3800000000000011 --authinfo 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+>$(OO_PS4_TOOLCHAIN)/bin/linux/create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --files "$(TARGET) sce_sys/param.sfo sce_sys/icon0.png"
 >$(OO_PS4_TOOLCHAIN)/bin/linux/PkgTool.Core pkg_build pkg.gp4 .
 
 build/main.o: source/main.cpp
@@ -26,4 +24,4 @@ build/main.o: source/main.cpp
 >$(CXX) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c -Wall -std=c++11 -isysroot $(OO_PS4_TOOLCHAIN) -isystem $(OO_PS4_TOOLCHAIN)/include -isystem $(OO_PS4_TOOLCHAIN)/include/c++/v1 -Iinclude -o $@ $<
 
 clean:
->rm -rf build pkg_dir *.pkg pkg.gp4
+>rm -rf build $(TARGET) *.pkg pkg.gp4
