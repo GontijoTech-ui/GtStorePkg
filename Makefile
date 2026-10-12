@@ -12,8 +12,10 @@ SRCS = $(wildcard source/*.cpp)
 OBJS = $(patsubst source/%.cpp,build/%.o,$(SRCS))
 DEPS = $(OBJS:.o=.d)
 
-# Adicionada a biblioteca -lSceLibcInternal para corrigir o erro do mspace
-LIBS = -luser_mem_sys -lSceLibcInternal -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceCommonDialog -lSceHttp -lSceSsl
+# Removidos o -luser_mem_sys e o -lSceLibcInternal que causam o crash CE-30008-1 em consolas Retail
+LIBS = -lc++ -lc -lkernel -lSceNet -lSceSysmodule -lSceCommonDialog -lSceHttp -lSceSsl
+
+AUTHINFO = 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
 CC  = clang --target=x86_64-pc-freebsd12-elf --sysroot=$(OO_PS4_TOOLCHAIN)
 CXX = clang++ --target=x86_64-pc-freebsd12-elf --sysroot=$(OO_PS4_TOOLCHAIN)
@@ -37,7 +39,7 @@ sce_sys/param.sfo: gerar_sfo.py
 > python3 gerar_sfo.py --content-id $(CONTENT_ID) --output $@
 
 $(TARGET): build/source.elf
-> $(BIN)/create-fself -in=$< -out=$@ --eboot "$@"
+> $(BIN)/create-fself -in=$< -out=$@ --eboot "$@" --paid 0x3800000000000011 --authinfo $(AUTHINFO)
 
 build/source.elf: $(OBJS) | build
 > $(LD) -m elf_x86_64 -pie --eh-frame-hdr --script $(OO_PS4_TOOLCHAIN)/link.x -o $@ $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJS) -L$(OO_PS4_TOOLCHAIN)/lib $(LIBS)
